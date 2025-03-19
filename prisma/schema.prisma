@@ -6,3 +6,85 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+model User {
+  id        Int            @id @default(autoincrement())
+  name      String?
+  email     String         @unique
+  userType  String?
+  password  String?
+  token     String?
+  wishlist  WishlistItem[]
+  orders    Order[]
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+}
+
+model Product {
+  id          Int            @id @default(autoincrement())
+  title       String?
+  sku         String?
+  price       Float?
+  image       String?
+  description String?
+  categoryId  Int?
+  category    Category?      @relation(fields: [categoryId], references: [id])
+  quantity    Int?
+  wishlist    WishlistItem[]
+  orderItems  OrderItem[]
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+}
+
+model Category {
+  id          Int            @id @default(autoincrement())
+  title       String
+  image       String?       
+  icon        String?        
+  description String?  
+  products    Product[]
+  orderItems  OrderItem[]
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+}
+
+model Order {
+  id              Int            @id @default(autoincrement())
+  orderId         String
+  userId          Int
+  user            User           @relation(fields: [userId], references: [id])
+  items           OrderItem[]
+  amount          Float?
+  discount        Float?
+  shippingAddress String?
+  status          String         @default("pending")
+  country         String?
+  city            String?
+  zipcode         String?
+  payment_type    String
+  shippedOn       String?
+  deliveredOn     String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+}
+
+model OrderItem {
+  id         Int       @id @default(autoincrement())
+  orderId    Int
+  productId  Int
+  categoryId Int
+  order      Order     @relation(fields: [orderId], references: [id])
+  product    Product   @relation(fields: [productId], references: [id])
+  category   Category  @relation(fields: [categoryId], references: [id])
+  quantity   Int
+  price      Float
+}
+
+model WishlistItem {
+  id        Int       @id @default(autoincrement())
+  userId    Int
+  productId Int
+  quantity  Int
+  user      User      @relation(fields: [userId], references: [id])
+  product   Product   @relation(fields: [productId], references: [id])
+}
