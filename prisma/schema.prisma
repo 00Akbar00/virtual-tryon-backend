@@ -3,88 +3,88 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mysql"
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id        Int            @id @default(autoincrement())
-  name      String?
-  email     String         @unique
-  userType  String?
-  password  String?
-  token     String?
-  wishlist  WishlistItem[]
-  orders    Order[]
-  createdAt DateTime       @default(now())
-  updatedAt DateTime       @updatedAt
+model Users {
+  id         Int            @id @default(autoincrement())
+  name       String?
+  email      String         @unique
+  user_type  String?
+  password   String?
+  token      String?
+  wishlist   wishlist_item[]
+  orders     Orders[]
+  created_at DateTime       @default(now())
+  updated_at DateTime       @updatedAt
 }
 
-model Product {
+model Products {
   id          Int            @id @default(autoincrement())
   title       String?
   sku         String?
   price       Float?
   image       String?
   description String?
-  categoryId  Int?
-  category    Category?      @relation(fields: [categoryId], references: [id])
+  category_id Int?
+  category    Categories?      @relation(fields: [category_id], references: [id])
   quantity    Int?
-  wishlist    WishlistItem[]
-  orderItems  OrderItem[]
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
+  wishlist    wishlist_item[]
+  order_items order_item[]
+  created_at  DateTime       @default(now())
+  updated_at  DateTime       @updatedAt
 }
 
-model Category {
+model Categories {
   id          Int            @id @default(autoincrement())
   title       String
   image       String?       
   icon        String?        
   description String?  
-  products    Product[]
-  orderItems  OrderItem[]
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
+  products    Products[]
+  order_items order_item[]
+  created_at  DateTime       @default(now())
+  updated_at  DateTime       @updatedAt
 }
 
-model Order {
-  id              Int            @id @default(autoincrement())
-  orderId         String
-  userId          Int
-  user            User           @relation(fields: [userId], references: [id])
-  items           OrderItem[]
-  amount          Float?
-  discount        Float?
-  shippingAddress String?
-  status          String         @default("pending")
-  country         String?
-  city            String?
-  zipcode         String?
-  payment_type    String
-  shippedOn       String?
-  deliveredOn     String?
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+model Orders {
+  id               Int            @id @default(autoincrement())
+  order_id         String
+  user_id          Int
+  user             Users           @relation(fields: [user_id], references: [id])
+  items            order_item[]
+  amount           Float?
+  discount         Float?
+  shipping_address String?
+  status           String         @default("pending")
+  country          String?
+  city             String?
+  zipcode          String?
+  payment_type     String
+  shipped_on       String?
+  delivered_on     String?
+  created_at       DateTime       @default(now())
+  updated_at       DateTime       @updatedAt
 }
 
-model OrderItem {
+model order_item {
+  id          Int       @id @default(autoincrement())
+  order_id    Int
+  product_id  Int
+  category_id Int
+  order       Orders     @relation(fields: [order_id], references: [id])
+  product     Products   @relation(fields: [product_id], references: [id])
+  category    Categories  @relation(fields: [category_id], references: [id])
+  quantity    Int
+  price       Float
+}
+
+model wishlist_item {
   id         Int       @id @default(autoincrement())
-  orderId    Int
-  productId  Int
-  categoryId Int
-  order      Order     @relation(fields: [orderId], references: [id])
-  product    Product   @relation(fields: [productId], references: [id])
-  category   Category  @relation(fields: [categoryId], references: [id])
+  user_id    Int
+  product_id Int
   quantity   Int
-  price      Float
-}
-
-model WishlistItem {
-  id        Int       @id @default(autoincrement())
-  userId    Int
-  productId Int
-  quantity  Int
-  user      User      @relation(fields: [userId], references: [id])
-  product   Product   @relation(fields: [productId], references: [id])
+  user       Users      @relation(fields: [user_id], references: [id])
+  product    Products   @relation(fields: [product_id], references: [id])
 }
