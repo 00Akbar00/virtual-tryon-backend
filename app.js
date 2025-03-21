@@ -26,7 +26,7 @@ const {
   cart,
   removeFromCart,
 } = require("./controllers/user/cart");
-const { isAdmin, checkAuth } = require("./controllers/middlewares/auth");
+const { isAdmin, checkAuth } = require("./middlewares/auth");
 const { dashboardData, getAllUsers } = require("./controllers/admin/dashboard");
 const {
   getAllOrders,
