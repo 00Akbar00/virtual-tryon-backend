@@ -1,81 +1,93 @@
-const ordersModel = require("../../models/order")
+const { PrismaClient } = require("@prisma/client");
 
+const prisma = new PrismaClient();
+
+// **Get All Orders**
 module.exports.getAllOrders = async (req, res) => {
-    try{
+  try {
+    const orders = await prisma.orders.findMany({
+      include: {
+        user: { select: { id: true, name: true, email: true } }, // Excludes password & token
+        items: {
+          include: {
+            product: { select: { id: true, title: true, price: true } },
+            category: { select: { id: true, title: true } },
+          },
+        },
+      },
+    });
 
-        const orders = await ordersModel.find()
-            .populate({path : "user" , select : "-password -token"})
-            .populate("items.productId")
-            .populate("items.categoryId")
+    const ordersCount = await prisma.orders.count();
 
-        const ordersCount = await ordersModel.find().count()
+    return res.json({
+      success: true,
+      message: "All orders retrieved successfully",
+      status: 200,
+      data: orders,
+      ordersCount,
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
 
-        return res.json({
-            success : true,
-            message : "all orders",
-            status : 200,
-            data : orders,
-            ordersCount
-        })
+// **Helper Function: Get Current Date**
+const getCurrentDate = () => {
+  const today = new Date();
+  const months = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+  ];
+  return `${months[today.getMonth()]} ${String(today.getDate()).padStart(
+    2,
+    "0"
+  )}, ${today.getFullYear()}`;
+};
 
-    }catch(error){
-
-        return res.send(error.message)
-    }
-}
-
-module.exports.getCurrentDate = async () => {
-
-    var today = new Date();
-    const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-    let day = String(today.getDate()).padStart(2, '0');
-    let month = months[today.getMonth()];
-    let year = today.getFullYear();
-    today = month + " " + day + ', ' + year;
-    return today
-
-}
-
+// **Change Order Status**
 module.exports.changeStatusOfOrder = async (req, res) => {
-    try{
+  try {
+    const { status, orderId } = req.query;
 
-        const {status, orderId} = req.query
-
-        if(!orderId || !status){
-            return res.json({
-                success : false,
-                message : "status or order Id is missing"
-            })
-        }
-        if(!["delivered","pending","shipped"].includes(status)){
-            return res.json({
-                success : false,
-                message : "wrong status"
-            })
-        }
-
-        var today = await this.getCurrentDate()
-        
-        var statusUpdate;
-        if(status == "shipped"){
-            statusUpdate = await ordersModel.findOneAndUpdate({_id : orderId},{status : status, shippedOn : today}, {new : true})
-        }
-        else if(status == "delivered"){
-            statusUpdate = await ordersModel.findOneAndUpdate({_id : orderId},{status : status, deliveredOn : today}, {new : true})
-        }
-        else{
-            statusUpdate = await ordersModel.findOneAndUpdate({_id : orderId},{status : status}, {new : true})
-        }
-
-        return res.json({
-            success : true,
-            message : "status updated successfully",
-            status : 200,
-            data : statusUpdate
-        })
-
-    }catch(error){
-        return res.send(error.message)
+    if (!orderId || !status) {
+      return res.json({
+        success: false,
+        message: "Status or order ID is missing",
+      });
     }
-}
 
+    if (!["delivered", "pending", "shipped"].includes(status)) {
+      return res.json({ success: false, message: "Invalid status" });
+    }
+
+    const today = getCurrentDate();
+    let updateData = { status };
+
+    if (status === "shipped") updateData.shipped_on = today;
+    if (status === "delivered") updateData.delivered_on = today;
+
+    const updatedOrder = await prisma.orders.update({
+      where: { id: parseInt(orderId) },
+      data: updateData,
+    });
+
+    return res.json({
+      success: true,
+      message: "Order status updated successfully",
+      status: 200,
+      data: updatedOrder,
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
