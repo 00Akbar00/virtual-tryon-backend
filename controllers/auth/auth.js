@@ -1,164 +1,180 @@
-const userModel = require("../../models/user");
+const { PrismaClient } = require("@prisma/client");
 const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken")
-const JWT_SECRET_KEY = '=seceret'
+const jwt = require("jsonwebtoken");
 
-function generateAuthToken(data){
-  const token = jwt.sign(data, 'seceret', { expiresIn: '10h' })
-  return token
+const prisma = new PrismaClient();
+const JWT_SECRET_KEY = "seceret";
+
+function generateAuthToken(data) {
+  return jwt.sign(data, JWT_SECRET_KEY, { expiresIn: "10h" });
 }
 
+// **Login User**
 module.exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
-    let user = await userModel.findOne({ email });
-    if (!user) {
-      return res.json({
-        success: true,
-        status: 400,
-        message: "user does not exist with this email and password",
-      });
-    }
-    // bcrypting the password and comparing with the one in db
-    if (await bcrypt.compare(password, user.password)) {
-      const token = generateAuthToken({_id : user?._id, email : email})
-      user.token = token
-      user.save()
-      return res.json({
-        success: true,
-        status: 200,
-        message: "user Logged in",
-        data: user,
-      });
-    }
-    return res.json({
-        success: false,
-        status: 400,
-        message: "user credentials are not correct",
-    })
+    let user = await prisma.users.findUnique({
+      where: { email },
+    });
 
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        message: "User does not exist with this email.",
+      });
+    }
+
+    if (await bcrypt.compare(password, user.password)) {
+      const token = generateAuthToken({ id: user.id, email: user.email });
+
+      // Update token in DB
+      await prisma.users.update({
+        where: { id: user.id },
+        data: { token },
+      });
+
+      return res.json({
+        success: true,
+        message: "User logged in",
+        data: { ...user, token },
+      });
+    }
+
+    return res.status(400).json({
+      success: false,
+      message: "Incorrect email or password.",
+    });
   } catch (error) {
-    return res.send(error.message);
+    return res.status(500).send(error.message);
   }
 };
 
+// **Register User**
 module.exports.register = async (req, res) => {
   try {
     const { email, password, name, userType } = req.body;
 
-    // if any one of the field from email and password is not filled
     if (!email || !password) {
-      return res.json({
-        success: false,
-        message: "email or password is empty",
-      });
+      return res
+        .status(400)
+        .json({ success: false, message: "Email or password is empty" });
     }
-    req.body.password = await bcrypt.hash(password, 10);
 
-    let user = new userModel(req.body);
-    await user.save();
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const user = await prisma.users.create({
+      data: { email, password: hashedPassword, name, user_type: userType },
+    });
 
     return res.json({
       success: true,
-      message: "user registered successfully",
+      message: "User registered successfully",
       data: user,
     });
   } catch (error) {
-    return res.send(error.message);
+    return res.status(500).send(error.message);
   }
 };
 
+// **Update User**
 module.exports.updateUser = async (req, res) => {
   try {
-
-    const userDataToBeUpdated = req.body;
     const { id } = req.query;
-    const user = await userModel.findOne({ _id: id });
+    const userDataToBeUpdated = req.body;
 
-    if (!user) return res.send("user does not exist");
+    const user = await prisma.users.findUnique({ where: { id: Number(id) } });
 
-    let updatedUser = await userModel.findOneAndUpdate(
-      { _id: id },
-      userDataToBeUpdated,
-      { new: true }
-    );
+    if (!user) return res.status(404).send("User does not exist");
+
+    const updatedUser = await prisma.users.update({
+      where: { id: Number(id) },
+      data: userDataToBeUpdated,
+    });
 
     return res.json({
       success: true,
-      message: "user updated successfully",
+      message: "User updated successfully",
       data: updatedUser,
     });
   } catch (error) {
-    return res.send("error : ", error.message);
+    return res.status(500).send(error.message);
   }
 };
 
+// **Delete User**
 module.exports.deleteUser = async (req, res) => {
   try {
     const { id } = req.query;
 
-    const user = await userModel.findOne({ _id: id });
-    if (!user) return res.status(200).send("user does not exist");
+    const user = await prisma.users.findUnique({ where: { id: Number(id) } });
 
-    await userModel.findOneAndDelete({ _id: id });
-    
+    if (!user)
+      return res
+        .status(404)
+        .json({ success: false, message: "User does not exist" });
+
+    await prisma.users.delete({ where: { id: Number(id) } });
+
     return res.json({
       success: true,
-      message: "user deleted successfully",
+      message: "User deleted successfully",
     });
   } catch (error) {
-    return res.status(400).send(error.message);
+    return res.status(500).send(error.message);
   }
 };
 
+// **Get User By ID**
 module.exports.userById = async (req, res) => {
   try {
     const { id } = req.query;
 
-    const user = await userModel.findOne({_id : id})
-    if(!user) return res.send("user does not exist")
+    const user = await prisma.users.findUnique({ where: { id: Number(id) } });
+
+    if (!user) return res.status(404).send("User does not exist");
 
     return res.json({
-        success : true,
-        message : "user deleted successfully",
-        data : user
-    })
+      success: true,
+      message: "User fetched successfully",
+      data: user,
+    });
+  } catch (error) {
+    return res.status(500).send(error.message);
+  }
+};
 
-    }catch(error){
-        return res.send("error : ", error.message)
-    }
-}
-
+// **Reset Password**
 module.exports.resetPassword = async (req, res) => {
+  try {
+    const { password, newPassword } = req.body;
+    const { id } = req.query;
 
-    try{
-        const {password, newPassword} = req.body;
-        const {id} = req.query
-    
-        if(!password || !newPassword || !id) return res.send("Fields are empty")
-    
-        let user = await userModel.findOne({_id : id})
-    
-        if(!user) return res.send("user does not exist")
-    
-        // comparing the password from the password in DB to allow changes
-        if(bcrypt.compare(password, user?.password)){
-            // encrypting new password 
-            user.password = await bcrypt.hash(newPassword,10)
-            user.save()
-            return res.json({
-                success : true,
-                message : "password updated successfully"
-            })
-        }
+    if (!password || !newPassword || !id)
+      return res.status(400).send("Fields are empty");
 
-        return res.json({
-            success : false,
-            message : "wrong password"
-        })
+    let user = await prisma.users.findUnique({ where: { id: Number(id) } });
 
-    }catch(error){
-        return res.send(error.message)
+    if (!user) return res.status(404).send("User does not exist");
+
+    if (await bcrypt.compare(password, user.password)) {
+      const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+
+      await prisma.users.update({
+        where: { id: Number(id) },
+        data: { password: hashedNewPassword },
+      });
+
+      return res.json({
+        success: true,
+        message: "Password updated successfully",
+      });
     }
-    
-}
+
+    return res.status(400).json({
+      success: false,
+      message: "Wrong password",
+    });
+  } catch (error) {
+    return res.status(500).send(error.message);
+  }
+};
