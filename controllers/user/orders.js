@@ -1,6 +1,4 @@
-const { PrismaClient } = require("@prisma/client");
-const prisma = new PrismaClient();
-
+const prisma = require('../../utils/prisma');
 // **Get User Orders**
 module.exports.orders = async (req, res) => {
   try {

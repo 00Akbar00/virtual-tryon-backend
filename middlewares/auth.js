@@ -1,75 +1,83 @@
-const jwt = require("jsonwebtoken")
-const TOKEN_KEY = 'seceret'
-const userModel = require("../../models/user")
+const jwt = require("jsonwebtoken");
+const { PrismaClient } = require("@prisma/client");
 
+const prisma = new PrismaClient();
+const TOKEN_KEY = process.env.JWT_SECRET || "seceret"; // Use environment variable for security
 
+// **Admin Authentication Middleware**
 module.exports.isAdmin = async (req, res, next) => {
+  try {
+    const token = req.headers.authorization?.split(" ")[1]; // Expect "Bearer <token>"
 
-    const {email} = req.body;
-    // receiving token from the header
-    let token = req.headers["x-auth-token"] || req.body.token || req.query.token;
-
-    if(token){
-        try{
-            // decode token with TOKEN key to extract the user
-            const decoded = jwt.verify(token,TOKEN_KEY)
-
-            // saving the current user in req.user
-            req.user = decoded
-
-            // checking if the logged in user is ADMIN or not
-            const user = await userModel.findOne({_id : decoded?._id, userType : "ADMIN"})
-                .select("-password")
-
-            if(!user){
-                // if not admin
-                return res.send("Insufficient User Permissions")
-            }
-
-            // if admin, pass to the next function call
-            return next()
-
-        }catch(error){
-            return res.status(401).json({ msg: "Invalid User Auth Token", err: error.message });     
-        }
-
+    if (!token) {
+      return res
+        .status(401)
+        .json({ success: false, message: "No Auth Token Provided" });
     }
-    else{
-        return res.status(400).json({ msg: "No Auth Token Found", err: "No Auth Token Found" });
+
+    // Verify Token
+    const decoded = jwt.verify(token, TOKEN_KEY);
+    req.user = decoded;
+
+    // Check if User Exists and is ADMIN
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.id }, // Using Prisma's `findUnique()`
+      select: { userType: true },
+    });
+
+    if (!user || user.userType !== "ADMIN") {
+      return res
+        .status(403)
+        .json({ success: false, message: "Access Denied. Admin Only." });
     }
-}
 
+    next(); // Proceed to next middleware
+  } catch (error) {
+    return res
+      .status(401)
+      .json({
+        success: false,
+        message: "Invalid or Expired Token",
+        error: error.message,
+      });
+  }
+};
 
+// **General Authentication Middleware**
 module.exports.checkAuth = async (req, res, next) => {
-    try{
+  try {
+    const token = req.headers.authorization?.split(" ")[1]; // Expect "Bearer <token>"
 
-        let token = req.headers["x-auth-token"] || req.body.token || req.query.token;
-
-        if(token){
-            try{
-
-                const decoded = jwt.verify(token,TOKEN_KEY)
-                req.user = decoded
-
-                const user = await userModel.findOne({_id : decoded?._id})
-                    .select("-password")
-
-                if(!user){
-                    return res.send("Authentication failed")
-                }
-                return next()
-
-            }catch(error){
-                
-                return res.status(401).json({ msg: "Invalid User Auth Token", err: error.message });     
-            }
-        
-        }
-        else{
-            return res.status(400).json({ msg: "No Auth Token Found", err: "No Auth Token Found" });
-        }
-
-    }catch(error){
-
+    if (!token) {
+      return res
+        .status(401)
+        .json({ success: false, message: "No Auth Token Provided" });
     }
-}
+
+    // Verify Token
+    const decoded = jwt.verify(token, TOKEN_KEY);
+    req.user = decoded;
+
+    // Check if User Exists
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.id }, // Using Prisma's `findUnique()`
+      select: { id: true },
+    });
+
+    if (!user) {
+      return res
+        .status(403)
+        .json({ success: false, message: "User Authentication Failed" });
+    }
+
+    next(); // Proceed to next middleware
+  } catch (error) {
+    return res
+      .status(401)
+      .json({
+        success: false,
+        message: "Invalid or Expired Token",
+        error: error.message,
+      });
+  }
+};

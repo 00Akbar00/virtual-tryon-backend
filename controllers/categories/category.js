@@ -1,5 +1,4 @@
-const { PrismaClient } = require("@prisma/client");
-const prisma = new PrismaClient();
+const prisma = require("../../utils/prisma");
 
 // **Add Category**
 module.exports.addCategory = async (req, res) => {
@@ -7,7 +6,12 @@ module.exports.addCategory = async (req, res) => {
     const { title, description, image } = req.body;
 
     if (!title || !description) {
-      return res.status(400).json({ success: false, message: "Title and description are required" });
+      return res
+        .status(400)
+        .json({
+          success: false,
+          message: "Title and description are required",
+        });
     }
 
     const category = await prisma.category.create({
@@ -47,10 +51,14 @@ module.exports.updateCategory = async (req, res) => {
     const { title, description, image } = req.body;
     const { id } = req.query;
 
-    const category = await prisma.category.findUnique({ where: { id: parseInt(id) } });
+    const category = await prisma.category.findUnique({
+      where: { id: parseInt(id) },
+    });
 
     if (!category) {
-      return res.status(404).json({ success: false, message: "Category not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Category not found" });
     }
 
     const updatedCategory = await prisma.category.update({
@@ -73,7 +81,9 @@ module.exports.deleteCategory = async (req, res) => {
   try {
     const { id } = req.query;
 
-    const category = await prisma.category.delete({ where: { id: parseInt(id) } });
+    const category = await prisma.category.delete({
+      where: { id: parseInt(id) },
+    });
 
     return res.status(200).json({
       success: true,

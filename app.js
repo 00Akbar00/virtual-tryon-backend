@@ -1,11 +1,12 @@
 const express = require("express");
 const app = express();
-const port = process.env.PORT;
-var bodyParser = require("body-parser");
+const port = process.env.PORT || 8082;
+const bodyParser = require("body-parser");
 const dotenv = require("dotenv");
-const jwt = require("jsonwebtoken");
-var path = require("path");
-var cors = require("cors");
+const cors = require("cors");
+const prisma = require("./utils/prisma");
+
+// Controllers
 const {
   register,
   login,
@@ -44,43 +45,38 @@ const {
   wishlist,
   removeFromWishlist,
 } = require("./controllers/user/wishlist");
-const mongoose = require("./config/database")();
+
 const multer = require("multer");
 const { uploadFile } = require("./controllers/files/files");
 const upload = multer({
   dest: "./uploads",
-  limits: {
-    fileSize: 10 * 1024 * 1024, // 10 MB
-  },
-});
+  limits: { fileSize: 10 * 1024 * 1024 },
+}); // 10 MB limit
 
-// To access public folder
+// Load environment variables
+dotenv.config();
+
+// Middleware
 app.use(cors());
-
-app.use(express.static(path.join(__dirname, "public")));
-
+app.use(express.static("public"));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.json());
 
-// Set up Global configuration access
-dotenv.config();
-
-app.get("/", (req, res) => {
-  res.send("Hello World!");
-});
+// Routes
+app.get("/", (req, res) => res.send("Hello World!"));
 
 // AUTH
 app.post("/register", register);
 app.post("/login", login);
 
-// User Routes
+// USER ROUTES
 app.post("/update-user", updateUser);
 app.get("/user", userById);
 app.get("/delete-user", deleteUser);
 app.post("/reset-password", resetPassword);
 
-// Products
+// PRODUCTS
 app.post("/product", [isAdmin], addProduct);
 app.get("/products", getAllProducts);
 app.post("/update-product", [isAdmin], updateProduct);
@@ -112,6 +108,22 @@ app.get("/admin/users", [isAdmin], getAllUsers);
 // FILES
 app.post("/upload-file", upload.single("file"), uploadFile);
 
-app.listen(8082, () => {
-  console.log(`Example app listening on port 8082!`);
+// Start Server
+app.listen(port, async () => {
+  console.log(`Server running on port ${port}`);
+
+  // Connect to Prisma
+  try {
+    await prisma.$connect();
+    console.log("Prisma connected to the database");
+  } catch (error) {
+    console.error("Prisma connection error:", error);
+  }
+});
+
+// Graceful Shutdown
+process.on("SIGINT", async () => {
+  await prisma.$disconnect();
+  console.log("Prisma disconnected");
+  process.exit(0);
 });
