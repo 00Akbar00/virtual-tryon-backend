@@ -1,109 +1,132 @@
-const orderModel = require("../../models/order")
-const userModel = require("../../models/user")
-const productModel = require("../../models/product")
-const {ObjectId} = require('mongodb');
+const { PrismaClient } = require("@prisma/client");
+const prisma = new PrismaClient();
 
+// **Checkout (Place Order)**
 module.exports.checkout = async (req, res) => {
-    try{
-        
-        var body = req.body;
-        const user = req.user
+  try {
+    const user = req.user;
+    const { items, totalAmount, paymentMethod } = req.body;
 
-        body.user = user?._id
-        body.orderId = (Math.floor(Math.random() * 1000000000)).toString();
-
-        // if cart is not empty and items array contains objects
-        if(body?.items.length){
-            let checkout = new orderModel(body)
-            checkout.save()
-
-            let items = body?.items 
-
-            items.forEach(async item => {
-
-                const updatedQuantity = await productModel.findOneAndUpdate(
-                    { _id: item.productId },
-                    [{
-                        $set: {
-                            quantity: {
-                                $subtract: ["$quantity", item.quantity]
-                            },
-                        }
-                    }],
-                )
-            });
-            return res.json({
-                success: true,
-                message : "successful checkout",
-                data : checkout
-            })
-        }
-        else{
-            return res.json({
-                success: false,
-                message : "pass correct parameters"
-            })
-        }
-
-    }catch(error){
-        return res.send(error.message)
+    if (!items || !items.length) {
+      return res.status(400).json({ success: false, message: "Cart is empty" });
     }
-}
 
+    const orderId = Math.floor(Math.random() * 1000000000).toString();
+
+    // Start a transaction to ensure atomicity
+    const order = await prisma.$transaction(async (tx) => {
+      // Create Order
+      const newOrder = await tx.order.create({
+        data: {
+          userId: user.id,
+          orderId,
+          items: {
+            create: items.map((item) => ({
+              productId: item.productId,
+              quantity: item.quantity,
+            })),
+          },
+          totalAmount,
+          paymentMethod,
+          status: "pending",
+        },
+        include: { items: true },
+      });
+
+      // Update Product Quantities
+      for (const item of items) {
+        await tx.product.update({
+          where: { id: item.productId },
+          data: { quantity: { decrement: item.quantity } },
+        });
+      }
+
+      return newOrder;
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: "Checkout successful",
+      data: order,
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// **Add to Cart**
 module.exports.addToCart = async (req, res) => {
-    try{
+  try {
+    const user = req.user;
+    const { productId, quantity } = req.body;
 
-        const data = req.body
-        let user = req.user
-
-        const addToCart = await userModel.findOneAndUpdate({_id : user?._id}, { $push: { cart: data } },{new : true})
-
-        return res.json({
-            success : true,
-            message : "product pushed in cart successfully",
-            data : addToCart
-        })
-
-    }catch(error){
-        return res.send(error.message)
+    if (!productId || !quantity) {
+      return res.status(400).json({
+        success: false,
+        message: "Product ID and quantity are required",
+      });
     }
-}
 
+    const updatedCart = await prisma.user.update({
+      where: { id: user.id },
+      data: { cart: { create: { productId, quantity } } },
+      include: { cart: true },
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Product added to cart successfully",
+      data: updatedCart.cart,
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// **Remove from Cart**
 module.exports.removeFromCart = async (req, res) => {
-    try{
+  try {
+    const user = req.user;
+    const { productId } = req.query;
 
-        const id = req.query
-        let user = req.user
-
-        const removeFromCart = await userModel.findOneAndUpdate({_id : user?._id}, { $pull: { cart: {productId : ObjectId(id)} } },{new : true})
-
-        return res.json({
-            success : true,
-            message : "product removed from cart successfully",
-            data : removeFromCart
-        })
-
-    }catch(error){
-        return res.send(error.message)
+    if (!productId) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Product ID is required" });
     }
-}
 
+    const updatedCart = await prisma.user.update({
+      where: { id: user.id },
+      data: { cart: { deleteMany: { productId } } },
+      include: { cart: true },
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Product removed from cart successfully",
+      data: updatedCart.cart,
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// **Get Cart Items**
 module.exports.cart = async (req, res) => {
-    try{
+  try {
+    const user = req.user;
 
-        const user = req.user
+    const cart = await prisma.user.findUnique({
+      where: { id: user.id },
+      include: { cart: { include: { product: true } } },
+    });
 
-        const cart = await userModel.find({_id : user._id})
-            .populate("cart.productId")
-            .select("-password -userType")
-
-        return res.json({
-            success : true,
-            message : "cart",
-            data : cart
-        })
-
-    }catch(error){
-        return res.send(error.message)
-    }
-}
+    return res.status(200).json({
+      success: true,
+      message: "User cart",
+      data: cart.cart,
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};

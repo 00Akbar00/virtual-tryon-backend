@@ -1,21 +1,32 @@
-const ordersModel = require("../../models/order")
+const { PrismaClient } = require("@prisma/client");
+const prisma = new PrismaClient();
 
+// **Get User Orders**
 module.exports.orders = async (req, res) => {
-    try{
+  try {
+    const user = req.user;
 
-        const user = req.user
-        const orders = await ordersModel.find({user : user._id})
-            .populate({path : "user" , select : "-password -token"})
-            .populate("items.productId")
-            .populate("items.categoryId")
+    // Fetch orders with related user & items
+    const orders = await prisma.order.findMany({
+      where: { userId: user.id },
+      include: {
+        user: { select: { id: true, name: true, email: true } },
+        items: { include: { product: true, category: true } },
+      },
+    });
 
-        return res.json({
-            success : true,
-            message : "orders",
-            data : orders
-        })
-
-    }catch(error){
-        return res.send(error.message)
+    if (!orders.length) {
+      return res
+        .status(404)
+        .json({ success: false, message: "No orders found" });
     }
-}
+
+    return res.status(200).json({
+      success: true,
+      message: "User orders retrieved successfully",
+      data: orders,
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};

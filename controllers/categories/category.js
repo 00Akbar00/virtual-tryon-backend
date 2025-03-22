@@ -1,124 +1,106 @@
-const categoryModel = require("../../models/category")
+const { PrismaClient } = require("@prisma/client");
+const prisma = new PrismaClient();
 
+// **Add Category**
 module.exports.addCategory = async (req, res) => {
-    try{
+  try {
+    const { title, description, image } = req.body;
 
-        const {title, description, image} = req.body;
-
-        if(!title || !description) return res.send("Fields are empty")
-
-        let category = new categoryModel(req.body)
-        category.save()
-
-        return res.json({
-            success : true,
-            message : "category inserted successfully",
-            data : category
-        })
-
-    }catch(error){
-        return res.send(error.message)
+    if (!title || !description) {
+      return res.status(400).json({ success: false, message: "Title and description are required" });
     }
-}
 
+    const category = await prisma.category.create({
+      data: { title, description, image },
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: "Category added successfully",
+      data: category,
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// **Get All Categories**
 module.exports.getCategories = async (req, res) => {
-    try{
+  try {
+    const categories = await prisma.category.findMany();
+    const categoriesCount = await prisma.category.count();
 
-        const categories = await categoryModel.find();
-        const categoriesCount = await categoryModel.find().count();
+    return res.status(200).json({
+      success: true,
+      message: "List of all categories",
+      data: categories,
+      count: categoriesCount,
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
 
-        return res.json({
-            success : true,
-            status : 400,
-            message : "list of all categories",
-            categories,
-            count : categoriesCount
-        })
-
-    }catch(error){
-        return res.send(error.message)
-    }
-}
-
-
+// **Update Category**
 module.exports.updateCategory = async (req, res) => {
-    try{
+  try {
+    const { title, description, image } = req.body;
+    const { id } = req.query;
 
-        const {title, description, image} = req.body;
-        const {id} = req.query;
+    const category = await prisma.category.findUnique({ where: { id: parseInt(id) } });
 
-        // check if product exist with the given product id
-        const category = await categoryModel.findOne({_id : id})
-
-        if(category){
-            const updatedCategory = await categoryModel.findOneAndUpdate({_id : id}, req.body, {new :true})
-
-            return res.json({
-                success : true,
-                status : 200,  
-                message : "category updated successfully",
-                data : updatedCategory
-            })
-        }else{
-            
-            return res.json({
-                success : false,
-                status : 400,
-                message : "category does not exist"
-            })
-
-        }
-
-    }catch(error){
-        return res.send(error.message)
+    if (!category) {
+      return res.status(404).json({ success: false, message: "Category not found" });
     }
-}
 
+    const updatedCategory = await prisma.category.update({
+      where: { id: parseInt(id) },
+      data: { title, description, image },
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Category updated successfully",
+      data: updatedCategory,
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// **Delete Category**
 module.exports.deleteCategory = async (req, res) => {
-    try{
+  try {
+    const { id } = req.query;
 
-        const {id} = req.query;
-        
-        // check if product exist with the given product id
-        const category = await categoryModel.findOneAndDelete({_id : id})
-        if(!category){
-            return res.json({
-                success : false,
-                message : "category does not exist",
-            })
-        }
-        return res.json({
-            success : true,
-            message : "category deleted successfully",
-        })
+    const category = await prisma.category.delete({ where: { id: parseInt(id) } });
 
-    }catch(error){
-        return res.send(error.message)
-    } 
-}
+    return res.status(200).json({
+      success: true,
+      message: "Category deleted successfully",
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
 
-// module.exports.getAllProducts = async (req, res) => {
-//     try{
+// **Search Categories by Title**
+module.exports.searchCategories = async (req, res) => {
+  try {
+    const { search = "" } = req.query;
 
-//         // Search through title names
-//         var {search} = req.query
-//         if(!search) search = ""
+    const categories = await prisma.category.findMany({
+      where: {
+        title: { contains: search, mode: "insensitive" },
+      },
+    });
 
-//         const products = await categoryModel.find({title:{'$regex' : search, '$options' : 'i'}})
-
-//         return res.json({
-//             success : true,
-//             status : 200,
-//             message : "list of products",
-//             data : products
-//         })
-
-//     }catch(error){
-//         return res.json({
-//             success : false,
-//             status : 400,
-//             message : error.message
-//         })
-//     }
-// }
-
+    return res.status(200).json({
+      success: true,
+      message: "List of categories matching search",
+      data: categories,
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};

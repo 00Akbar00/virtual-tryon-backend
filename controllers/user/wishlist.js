@@ -1,61 +1,97 @@
-const userModel = require("../../models/user")
-const {ObjectId} = require('mongodb');
+const { PrismaClient } = require("@prisma/client");
+const prisma = new PrismaClient();
 
-
+// **Add to Wishlist**
 module.exports.addToWishlist = async (req, res) => {
-    try{
+  try {
+    const { productId } = req.body;
+    const userId = req.user.id;
 
-        const data = req.body
-        let user = req.user
-
-        const addToWishlist = await userModel.findOneAndUpdate({_id : user?._id}, { $push: { wishlist: data } },{new : true})
-
-        return res.json({
-            success : true,
-            message : "product pushed in wishlist successfully",
-            data : addToWishlist
-        })
-
-    }catch(error){
-        return res.send(error.message)
+    if (!productId) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Product ID is required" });
     }
-}
 
+    // Check if product is already in the wishlist
+    const existingWishlistItem = await prisma.wishlist.findFirst({
+      where: { userId, productId },
+    });
+
+    if (existingWishlistItem) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Product already in wishlist" });
+    }
+
+    // Add product to wishlist
+    const addedWishlist = await prisma.wishlist.create({
+      data: { userId, productId },
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Product added to wishlist successfully",
+      data: addedWishlist,
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// **Remove from Wishlist**
 module.exports.removeFromWishlist = async (req, res) => {
-    try{
+  try {
+    const { productId } = req.query;
+    const userId = req.user.id;
 
-        const id = req.query
-        let user = req.user
-
-        const removeFromWishlist = await userModel.findOneAndUpdate({_id : user?._id}, { $pull: { wishlist: {productId : ObjectId(id)} } },{new : true})
-
-        return res.json({
-            success : true,
-            message : "product removed from wishlist successfully",
-            data : removeFromWishlist
-        })
-
-    }catch(error){
-        return res.send(error.message)
+    if (!productId) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Product ID is required" });
     }
-}
 
+    const removedWishlist = await prisma.wishlist.deleteMany({
+      where: { userId, productId },
+    });
+
+    if (!removedWishlist.count) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Product not found in wishlist" });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Product removed from wishlist successfully",
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// **Get Wishlist**
 module.exports.wishlist = async (req, res) => {
-    try{
+  try {
+    const userId = req.user.id;
 
-        const user = req.user
+    const wishlist = await prisma.wishlist.findMany({
+      where: { userId },
+      include: { product: true },
+    });
 
-        const wishlist = await userModel.find({_id : user._id})
-            .populate("wishlist.productId")
-            .select("-password -userType")
-
-        return res.json({
-            success : true,
-            message : "Wishlist",
-            data : wishlist
-        })
-
-    }catch(error){
-        return res.send(error.message)
+    if (!wishlist.length) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Wishlist is empty" });
     }
-}
+
+    return res.status(200).json({
+      success: true,
+      message: "Wishlist retrieved successfully",
+      data: wishlist,
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
