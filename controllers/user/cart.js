@@ -66,7 +66,7 @@ module.exports.addToCart = async (req, res) => {
       });
     }
 
-    const updatedCart = await prisma.user.update({
+    const updatedCart = await prisma.users.update({
       where: { id: user.id },
       data: { cart: { create: { productId, quantity } } },
       include: { cart: true },
@@ -94,7 +94,7 @@ module.exports.removeFromCart = async (req, res) => {
         .json({ success: false, message: "Product ID is required" });
     }
 
-    const updatedCart = await prisma.user.update({
+    const updatedCart = await prisma.users.update({
       where: { id: user.id },
       data: { cart: { deleteMany: { productId } } },
       include: { cart: true },
@@ -115,7 +115,7 @@ module.exports.cart = async (req, res) => {
   try {
     const user = req.user;
 
-    const cart = await prisma.user.findUnique({
+    const cart = await prisma.users.findUnique({
       where: { id: user.id },
       include: { cart: { include: { product: true } } },
     });

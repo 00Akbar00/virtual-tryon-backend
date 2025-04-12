@@ -1,4 +1,4 @@
-const prisma = require('../../utils/prisma');
+const prisma = require("../../utils/prisma");
 
 // **Add to Wishlist**
 module.exports.addToWishlist = async (req, res) => {
@@ -13,7 +13,7 @@ module.exports.addToWishlist = async (req, res) => {
     }
 
     // Check if product is already in the wishlist
-    const existingWishlistItem = await prisma.wishlist.findFirst({
+    const existingWishlistItem = await prisma.wishlistItem.findFirst({
       where: { userId, productId },
     });
 
@@ -24,7 +24,7 @@ module.exports.addToWishlist = async (req, res) => {
     }
 
     // Add product to wishlist
-    const addedWishlist = await prisma.wishlist.create({
+    const addedWishlist = await prisma.wishlistItem.create({
       data: { userId, productId },
     });
 
@@ -50,7 +50,7 @@ module.exports.removeFromWishlist = async (req, res) => {
         .json({ success: false, message: "Product ID is required" });
     }
 
-    const removedWishlist = await prisma.wishlist.deleteMany({
+    const removedWishlist = await prisma.wishlistItem.deleteMany({
       where: { userId, productId },
     });
 
@@ -74,7 +74,7 @@ module.exports.wishlist = async (req, res) => {
   try {
     const userId = req.user.id;
 
-    const wishlist = await prisma.wishlist.findMany({
+    const wishlist = await prisma.wishlistItem.findMany({
       where: { userId },
       include: { product: true },
     });

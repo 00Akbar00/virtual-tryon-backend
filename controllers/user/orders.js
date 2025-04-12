@@ -5,7 +5,7 @@ module.exports.orders = async (req, res) => {
     const user = req.user;
 
     // Fetch orders with related user & items
-    const orders = await prisma.order.findMany({
+    const orders = await prisma.orders.findMany({
       where: { userId: user.id },
       include: {
         user: { select: { id: true, name: true, email: true } },
