@@ -14,7 +14,7 @@ module.exports.addCategory = async (req, res) => {
         });
     }
 
-    const category = await prisma.category.create({
+    const category = await prisma.categories.create({
       data: { title, description, image },
     });
 
@@ -32,7 +32,7 @@ module.exports.addCategory = async (req, res) => {
 module.exports.getCategories = async (req, res) => {
   try {
     const categories = await prisma.category.findMany();
-    const categoriesCount = await prisma.category.count();
+    const categoriesCount = await prisma.categories.count();
 
     return res.status(200).json({
       success: true,
@@ -51,7 +51,7 @@ module.exports.updateCategory = async (req, res) => {
     const { title, description, image } = req.body;
     const { id } = req.query;
 
-    const category = await prisma.category.findUnique({
+    const category = await prisma.categories.findUnique({
       where: { id: parseInt(id) },
     });
 
@@ -61,7 +61,7 @@ module.exports.updateCategory = async (req, res) => {
         .json({ success: false, message: "Category not found" });
     }
 
-    const updatedCategory = await prisma.category.update({
+    const updatedCategory = await prisma.categories.update({
       where: { id: parseInt(id) },
       data: { title, description, image },
     });
@@ -81,7 +81,7 @@ module.exports.deleteCategory = async (req, res) => {
   try {
     const { id } = req.query;
 
-    const category = await prisma.category.delete({
+    const category = await prisma.categories.delete({
       where: { id: parseInt(id) },
     });
 
@@ -99,7 +99,7 @@ module.exports.searchCategories = async (req, res) => {
   try {
     const { search = "" } = req.query;
 
-    const categories = await prisma.category.findMany({
+    const categories = await prisma.categories.findMany({
       where: {
         title: { contains: search, mode: "insensitive" },
       },
