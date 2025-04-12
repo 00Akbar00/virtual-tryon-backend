@@ -31,7 +31,7 @@ module.exports.login = async (req, res) => {
         data: { token },
       });
 
-      return res.json({
+      return res.status(200).json({
         success: true,
         message: "User logged in",
         data: { ...user, token },
