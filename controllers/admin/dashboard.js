@@ -36,8 +36,8 @@ module.exports.getAllUsers = async (req, res) => {
         id: true,
         name: true,
         email: true,
-        user_type: true,
-        created_at: true,
+        userType: true,
+        createdAt: true,
       },
     });
 

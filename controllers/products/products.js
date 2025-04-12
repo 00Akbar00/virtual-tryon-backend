@@ -12,7 +12,7 @@ module.exports.addProduct = async (req, res) => {
       });
     }
 
-    const product = await prisma.product.create({
+    const product = await prisma.products.create({
       data: {
         title,
         sku,
@@ -37,13 +37,13 @@ module.exports.getProducts = async (req, res) => {
   try {
     const { page = 1, limit = 10 } = req.query;
 
-    const products = await prisma.product.findMany({
+    const products = await prisma.products.findMany({
       skip: (page - 1) * limit,
       take: Number(limit),
       include: { category: true }, // Populate category
     });
 
-    const productsCount = await prisma.product.count();
+    const productsCount = await prisma.products.count();
 
     return res.status(200).json({
       success: true,
@@ -62,7 +62,7 @@ module.exports.updateProduct = async (req, res) => {
     const { id } = req.query;
     const { title, sku, price, image, categoryId } = req.body;
 
-    const product = await prisma.product.findUnique({
+    const product = await prisma.products.findUnique({
       where: { id: parseInt(id) },
     });
 
@@ -72,7 +72,7 @@ module.exports.updateProduct = async (req, res) => {
         .json({ success: false, message: "Product not found" });
     }
 
-    const updatedProduct = await prisma.product.update({
+    const updatedProduct = await prisma.products.update({
       where: { id: parseInt(id) },
       data: {
         title,
@@ -98,7 +98,7 @@ module.exports.deleteProduct = async (req, res) => {
   try {
     const { id } = req.query;
 
-    await prisma.product.delete({ where: { id: parseInt(id) } });
+    await prisma.products.delete({ where: { id: parseInt(id) } });
 
     return res.status(200).json({
       success: true,
@@ -114,7 +114,7 @@ module.exports.getAllProducts = async (req, res) => {
   try {
     const { search = "" } = req.query;
 
-    const products = await prisma.product.findMany({
+    const products = await prisma.products.findMany({
       where: {
         title: { contains: search, mode: "insensitive" },
       },

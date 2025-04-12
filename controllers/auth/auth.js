@@ -61,7 +61,7 @@ module.exports.register = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const user = await prisma.users.create({
-      data: { email, password: hashedPassword, name, user_type: userType },
+      data: { email, password: hashedPassword, name, userType },
     });
 
     return res.json({
