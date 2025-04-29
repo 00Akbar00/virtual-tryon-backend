@@ -57,7 +57,22 @@ const upload = multer({
 dotenv.config();
 
 // Middleware
-app.use(cors());
+const cors = require('cors');
+
+const allowedOrigins = ['http://192.168.171.160:8088', 'http://localhost:8088'];
+
+app.use(cors({
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    } else {
+      return callback(new Error('Not allowed by CORS'));
+    }
+  }
+}));
+
 app.use(express.static("public"));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
