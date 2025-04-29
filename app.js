@@ -56,9 +56,6 @@ const upload = multer({
 // Load environment variables
 dotenv.config();
 
-// Middleware
-const cors = require('cors');
-
 const allowedOrigins = ['http://192.168.171.160:8088', 'http://localhost:8088'];
 
 app.use(cors({
